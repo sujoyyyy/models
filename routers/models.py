@@ -4,10 +4,8 @@ import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 import sys
-
+import uuid,os
 router = APIRouter()
-
-
 
 
 def deriv_sirm(y, t, N, alpha, beta, gamma, delta, b, c1, c2, c3, c4, epsilon):
@@ -32,16 +30,16 @@ def deriv_seirmz(y, t, N, alpha, beta, gamma, delta, a, c, d, f, g, b, c1, c2, c
 
 # Api call to add new expense in a group
 @router.post("/model")
-def model(model_type: str, N: int, epsilon: int, b: float):
+def model(data: dict):
     resp = {}
     try:
-        if model_type == "SIRM":
+        if data['model_type'] == "SIRM":
             ############################################ Empirical Variables
             # Initial number of infected, recovered and mortal individuals, I0, R0 and M0.
             #Equilibrium (Local)- (1,0,0)- only one individual is infected and share fake news
             I0, R0, M0 = 1, 0, 0
             # Everyone else, S0, is susceptible to infection initially.
-            S0 = N - I0 - R0 - M0
+            S0 = data['N'] - I0 - R0 - M0
             # Contact rate- alpha, mean recovery rate- beta, mortality rates- delta and gamma (in 1/days).
             alpha, beta, gamma, delta = 0.5, 0.05, 0.025, 0.025 
             #bias and population change rates(c1- growth and c2, c3, c4- exit rates)
@@ -52,7 +50,7 @@ def model(model_type: str, N: int, epsilon: int, b: float):
             # Initial conditions vector
             y0 = S0, I0, R0, M0
             # Integrate the SIR equations over the time grid, t.
-            ret = odeint(deriv_sirm, y0, t, args=(N, alpha, beta, gamma, delta, b, c1, c2, c3, c4, epsilon))
+            ret = odeint(deriv_sirm, y0, t, args=(data['N'], alpha, beta, gamma, delta, data['b'], c1, c2, c3, c4,data['epsilon']))
             S, I, R, M = ret.T
 
             # Plot the data on four separate curves for S(t), I(t), R(t) and M(t)
@@ -64,7 +62,7 @@ def model(model_type: str, N: int, epsilon: int, b: float):
             ax.plot(t, M, 'y', alpha=0.5, lw=2, label='Mortality')
             ax.set_xlabel('Time /days')
             ax.set_ylabel('Population')
-            ax.set_ylim(0,N)
+            ax.set_ylim(0,data['N'])
             ax.yaxis.set_tick_params(length=0)
             ax.xaxis.set_tick_params(length=0)
             ax.grid(b=True, which='major', c='w', lw=2, ls='-')
@@ -73,12 +71,14 @@ def model(model_type: str, N: int, epsilon: int, b: float):
             for spine in ('top', 'right', 'bottom', 'left'):
                 ax.spines[spine].set_visible(False)
             #plt.show()
-            plt.savefig("static/SIRMoutput.jpg")
-            resp["url"] = "/static/SIRMoutput.jpg"
+            #plt.gcf().set_size_inches(4,2.6)
+            prev = "static/SIRMoutput" + str(uuid.uuid1())+".jpg"
+            plt.savefig(prev)
+            resp["url"] = prev
         else:
             E0, I0, R0, M0, Z0 = 1, 0, 0, 0, 0
             # Everyone else, S0, is susceptible to infection initially.
-            S0 = N - I0 - R0 - M0 - Z0 - E0
+            S0 = data['N'] - I0 - R0 - M0 - Z0 - E0
             # Contact rate, beta, and mean recovery rate, gamma, (in 1/days).
             alpha, beta, gamma, delta = 0.5, 0.05, 0.025, 0.025 
             a,c,d,f,g = 0.5, 0.05, 0.025, 0.025 , 0.025
@@ -93,7 +93,7 @@ def model(model_type: str, N: int, epsilon: int, b: float):
             # Initial conditions vector
             y0 = S0, E0, I0, R0, M0, Z0
             # Integrate the SIR equations over the time grid, t.
-            ret = odeint(deriv_seirmz, y0, t, args=(N, alpha, beta, gamma, delta, a, c, d, f, g, b, c1, c2, c3, c4, c5, c6, epsilon))
+            ret = odeint(deriv_seirmz, y0, t, args=(data['N'], alpha, beta, gamma, delta, a, c, d, f, g, data['b'], c1, c2, c3, c4, c5, c6, data['epsilon']))
             S, E, I, R, M, Z = ret.T
 
             # Plot the data on four separate curves for S(t), I(t), R(t) and M(t)
@@ -107,7 +107,7 @@ def model(model_type: str, N: int, epsilon: int, b: float):
             ax.plot(t, Z, 'k', alpha=0.5, lw=2, label='Skeptic')
             ax.set_xlabel('Time /days')
             ax.set_ylabel('Population')
-            ax.set_ylim(0,N)
+            ax.set_ylim(0,data['N'])
             ax.yaxis.set_tick_params(length=0)
             ax.xaxis.set_tick_params(length=0)
             ax.grid(b=True, which='major', c='w', lw=2, ls='-')
@@ -116,10 +116,13 @@ def model(model_type: str, N: int, epsilon: int, b: float):
             for spine in ('top', 'right', 'bottom', 'left'):
                 ax.spines[spine].set_visible(False)
             #plt.show()
-            plt.savefig("static/SEIRMZoutput.jpg")
-            resp["url"] = "/static/SEIRMZoutput.jpg"
+            #plt.gcf().set_size_inches(4,2.6)
+
+            prev = "static/SEIRMZoutput" + str(uuid.uuid1())+".jpg"
+            plt.savefig(prev)
+            resp["url"] = prev
         return resp
     except Exception as e:
         exc_type, exc_obj, exc_tb = sys.exc_info()
         print("model:", e, "at", str(exc_tb.tb_lineno))
-        raise HTTPException(500)
+        raise HTTPException(500) 
